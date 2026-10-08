@@ -2,10 +2,10 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NODE_VERSION="18.17.0"
+BRAVE_BROWSER=""
 
 echo "==============================================="
-echo "🚀 Setup Module Responsive Mobile"
+echo "🚀 Setup Module Responsive Mobile + Brave"
 echo "==============================================="
 
 # Kiểm tra Node.js
@@ -21,8 +21,30 @@ echo "✅ Node.js: $NODE_INSTALLED"
 NPM_INSTALLED=$(npm -v)
 echo "✅ npm: $NPM_INSTALLED"
 
+# Kiểm tra Brave Browser
+echo ""
+echo "🔍 Tìm Brave Browser..."
+
+if command -v brave &> /dev/null; then
+  BRAVE_BROWSER=$(command -v brave)
+  echo "✅ Brave: $BRAVE_BROWSER"
+elif command -v brave-browser &> /dev/null; then
+  BRAVE_BROWSER=$(command -v brave-browser)
+  echo "✅ Brave (brave-browser): $BRAVE_BROWSER"
+elif [ -f "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser" ]; then
+  BRAVE_BROWSER="/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+  echo "✅ Brave (macOS): $BRAVE_BROWSER"
+elif [ -f "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe" ]; then
+  BRAVE_BROWSER="C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+  echo "✅ Brave (Windows): $BRAVE_BROWSER"
+else
+  echo "⚠️  Brave Browser không tìm thấy"
+  echo "📥 Tải từ: https://brave.com"
+fi
+
 # Vào thư mục project
 cd "$PROJECT_DIR"
+echo ""
 echo "📁 Project: $PROJECT_DIR"
 
 # Xóa cache cũ
@@ -105,7 +127,7 @@ if [ ! -f "$PROJECT_DIR/tsconfig.json" ]; then
 EOF
 fi
 
-# Tạo Vite config
+# Tạo Vite config with Brave support
 if [ ! -f "$PROJECT_DIR/vite.config.ts" ]; then
   cat > vite.config.ts << 'EOF'
 import { defineConfig } from 'vite'
@@ -115,7 +137,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    open: true,
+    open: process.env.BRAVE_BROWSER ? false : true,
   },
   build: {
     outDir: 'dist',
@@ -395,7 +417,10 @@ echo "==============================================="
 echo "✅ Hoàn tất!"
 echo "==============================================="
 echo ""
-echo "📌 Chạy dev server:"
+echo "📌 Chạy dev server với Brave Browser:"
+echo "   npm run dev:brave"
+echo ""
+echo "📌 Hoặc chạy bình thường:"
 echo "   npm run dev"
 echo ""
 echo "📌 Build production:"
@@ -404,5 +429,28 @@ echo ""
 echo "📌 Preview build:"
 echo "   npm run preview"
 echo ""
-echo "🌐 URL: http://localhost:5173"
+
+# Nếu tìm thấy Brave, chạy dev server
+if [ -n "$BRAVE_BROWSER" ]; then
+  echo "🌐 Mở Brave Browser..."
+  sleep 2
+  
+  # Chạy dev server trong background
+  BRAVE_BROWSER="$BRAVE_BROWSER" npm run dev &
+  
+  sleep 4
+  
+  # Mở URL trong Brave
+  if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    "$BRAVE_BROWSER" http://localhost:5173 &
+  elif [[ "$OSTYPE" == "darwin"* ]]; then
+    open -a "Brave Browser" http://localhost:5173
+  elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    start "$BRAVE_BROWSER" http://localhost:5173
+  fi
+else
+  echo "⚠️  Chạy bằng browser mặc định:"
+  echo "   npm run dev"
+fi
+
 echo ""
